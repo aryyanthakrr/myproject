@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mergelab-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=MergeLab
+      - DEBUG=false
+      - DATABASE_URL=sqlite:///./data/mergelab.db
+      - STORAGE_PATH=/app/storage
+      - HF_TOKEN=${HF_TOKEN:-}
+      - MAX_FILE_SIZE=53687091200
+      - RATE_LIMIT_FREE=5
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-}
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/storage:/app/storage
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - mergelab-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:8000
+    container_name: mergelab-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-}
+      - GITHUB_ID=${GITHUB_ID:-}
+      - GITHUB_SECRET=${GITHUB_SECRET:-}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - mergelab-network
+
+networks:
+  mergelab-network:
+    driver: bridge
+
+volumes:
+  backend_data:
+  backend_storage:
